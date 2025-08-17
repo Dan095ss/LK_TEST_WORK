@@ -1,6 +1,5 @@
 import os
 
-import pygame
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -26,21 +25,55 @@ pygame.mixer.init()
 console = Console()
 
 
-def validate_product_name(product_name):
-    # Проверяет, что название продукта не пустое и содержит только допустимые символы
-    if not product_name or not re.match(r"^[a-zA-Z0-9\s\-\(\)]+$", product_name):
+def validate_product_name(conn, product_name):
+    os.system("clear")
+
+    # Проверка на пустое значение
+    if not product_name:
+        raise ValueError("Название продукта не может быть пустым.")
+
+    # Проверка на допустимые символы
+    if not re.match(r"^[a-zA-Z0-9\s\-\(\)]+$", product_name):
         raise ValueError("Недопустимое название продукта. Используйте только буквы, цифры, пробелы, дефисы и скобки.")
 
+    # Проверка существования продукта в базе данных
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COUNT(*) FROM products WHERE product = ?
+    """, (product_name,))
+    product_exists = cursor.fetchone()[0]
 
-def validate_version(version_str):
-    # Проверяет, что версия соответствует формату X.Y.Z
+    if not product_exists:
+        raise ValueError(f"Продукт '{product_name}' не найден в базе данных.")
+
+
+def validate_version(conn, product_name, version_str):
+    """
+    Проверяет, что версия:
+    1. Соответствует формату X.Y.Z.
+    2. Существует в базе данных для указанного продукта.
+    """
+    os.system("clear")
+
+    # Проверка формата версии
     try:
         version.parse(version_str)
     except Exception:
         raise ValueError(f"Недопустимый формат версии: {version_str}. Ожидается формат X.Y.Z.")
 
+    # Проверка существования версии в базе данных
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COUNT(*) FROM products WHERE product = ? AND version = ?
+    """, (product_name, version_str))
+    version_exists = cursor.fetchone()[0]
+
+    if not version_exists:
+        raise ValueError(f"Версия '{version_str}' для продукта '{product_name}' не найдена в базе данных.")
+
 
 def print_vulnerabilities_table(results, terminal_supports_links):
+    os.system("clear")
     if not results:
         console.print("[bold green]Уязвимостей не найдено! ✅[/]")
         return
@@ -124,6 +157,7 @@ def exit_sound():
 
 
 def print_easter_egg():
+    os.system("clear")
     console.print(Panel(
         "[bold magenta]Вы нашли секретную пасхалку! 🎉\n\n"
         "Спасибо за внимание к моей программе:)!\n"
@@ -131,6 +165,53 @@ def print_easter_egg():
         title="🎉 Секретная пасхалка! 🎉",
         style="on black"
     ))
+
+
+def handle_database_initialization():
+    """
+    Обрабатывает инициализацию базы данных:
+    - Если база данных не существует, создает новую.
+    - Если существует зашифрованный файл (.zlib), расшифровывает его.
+    - В случае ошибки удаляет базу данных и формирует её заново.
+
+    Я тут изначально использовал цикл While True без отдельной функции инициализации запуска, но потом понял, что это ребячество и решил взяться за ум)
+    """
+    try:
+        # Проверяем существование файлов
+        if not os.path.exists(DB_NAME) and not os.path.exists(DB_NAME + ".zlib"):
+            # Первый запуск: база данных не найдена
+            console.print("[bold yellow]Первый запуск: база данных не найдена. Создаём новую...[/]")
+            conn = init_database(DB_NAME)
+            return conn
+
+        elif os.path.exists(DB_NAME + ".zlib"):
+            # Если существует зашифрованный файл, расшифровываем его
+            decompress_file(DB_NAME + ".zlib")
+            conn = init_database(DB_NAME)
+            return conn
+
+        else:
+            # База данных существует, пытаемся подключиться
+            conn = init_database(DB_NAME)
+            return conn
+
+    except Exception as e:
+        # В случае ошибки удаляем старую базу данных и создаём новую
+        console.print(f"[bold red]Ошибка работы с базой данных: {e}[/]")
+        console.print("[bold yellow]Попытка восстановления: удаляем старую базу данных и создаём новую...[/]")
+
+        # Удаляем существующие файлы базы данных
+        if os.path.exists(DB_NAME):
+            os.remove(DB_NAME)
+            console.print(f"[bold yellow]Удалён файл базы данных: {DB_NAME}[/]")
+        if os.path.exists(DB_NAME + ".zlib"):
+            os.remove(DB_NAME + ".zlib")
+            console.print(f"[bold yellow]Удалён зашифрованный файл базы данных: {DB_NAME}.zlib[/]")
+
+        # Пытаемся создать новую базу данных
+        console.print("[bold yellow]Создаём новую базу данных...[/]")
+        conn = init_database(DB_NAME)
+        return conn
 
 
 def main():
@@ -142,21 +223,12 @@ def main():
     console.print(Panel("[bold green]SUPER PUPER DUPER ULTRA [bold cyan]Vulnerability Checker[/] v1.0[/]",
                         title="Добро пожаловать!", subtitle="Защитите свои системы!"))
 
-    if not os.path.exists(DB_NAME) and not os.path.exists(DB_NAME + ".zlib"):
-        try:
-            console.print("[bold yellow]Первый запуск: база данных не найдена. Создаём новую...[/]")
-            conn = init_database(DB_NAME)
-        except Exception as e:
-            console.print(f"[bold red]Ошибка подключения к базе данных: {e}[/]")
-            return
-    elif os.path.exists(DB_NAME + ".zlib"):
-        try:
-            # Распаковка базы данных перед использованием
-            decompress_file(DB_NAME + ".zlib")
-            conn = init_database(DB_NAME)
-        except Exception as e:
-            console.print(f"[bold red]Ошибка подключения к базе данных: {e}[/]")
-            return
+    try:
+        conn = handle_database_initialization()
+    except Exception as e:
+        console.print(f"[bold red]Критическая ошибка при работе с базой данных: {e}[/]")
+        return
+
 
     # Загрузка данных
     loaded_versions = load_versions(conn, VERSIONS_FILE)
@@ -182,17 +254,19 @@ def main():
 
         # Проверяем, что введённое значение соответствует меню
         if choice not in ["1", "2", "3"]:
+            os.system("clear")
             console.print("[bold red]Неверный выбор. Попробуйте снова.[/]")
             continue
 
         if choice == "1":
             product = Prompt.ask("[bold yellow]Введите название продукта[/]").strip()
             try:
-                validate_product_name(product)
+                validate_product_name(conn, product)
             except ValueError as e:
                 console.print(f"[bold red]{e}[/]")
                 continue
 
+            os.system("clear")
             first_safe_version, last_version = get_safe_version(conn, product)
             if first_safe_version:
                 console.print(Panel(
@@ -207,9 +281,10 @@ def main():
             product = Prompt.ask("[bold yellow]Введите название продукта[/]").strip()
             version = Prompt.ask("[bold yellow]Введите версию[/]").strip()
 
+            os.system("clear")
             try:
-                validate_product_name(product)
-                validate_version(version)
+                validate_product_name(conn, product)
+                validate_version(conn, product, version)
             except ValueError as e:
                 console.print(f"[bold red]{e}[/]")
                 continue
@@ -223,6 +298,7 @@ def main():
                 print_vulnerabilities_table(results, terminal_supports_links)
 
         elif choice == "3":
+            os.system("clear")
             console.print("[bold magenta]Вы покинули матрицу... 🚪[/]")
             exit_sound()
             pygame.mixer.music.stop()
