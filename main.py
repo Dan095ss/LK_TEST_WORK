@@ -1,4 +1,5 @@
 import os
+import platform
 
 from rich.console import Console
 from rich.panel import Panel
@@ -25,8 +26,20 @@ pygame.mixer.init()
 console = Console()
 
 
+def clear_terminal():
+    """
+    Очищает терминал в зависимости от типа операционной системы.
+    """
+    system_name = platform.system()
+
+    if system_name == "Windows":
+        os.system("cls")
+    elif system_name in ("Linux", "Darwin"):
+        os.system("clear")
+
+
 def validate_product_name(conn, product_name):
-    os.system("clear")
+    clear_terminal()
 
     # Проверка на пустое значение
     if not product_name:
@@ -53,7 +66,7 @@ def validate_version(conn, product_name, version_str):
     1. Соответствует формату X.Y.Z.
     2. Существует в базе данных для указанного продукта.
     """
-    os.system("clear")
+    clear_terminal()
 
     # Проверка формата версии
     try:
@@ -73,7 +86,7 @@ def validate_version(conn, product_name, version_str):
 
 
 def print_vulnerabilities_table(results, terminal_supports_links):
-    os.system("clear")
+    clear_terminal()
     if not results:
         console.print("[bold green]Уязвимостей не найдено! ✅[/]")
         return
@@ -157,7 +170,7 @@ def exit_sound():
 
 
 def print_easter_egg():
-    os.system("clear")
+    clear_terminal()
     console.print(Panel(
         "[bold magenta]Вы нашли секретную пасхалку! 🎉\n\n"
         "Спасибо за внимание к моей программе:)!\n"
@@ -254,7 +267,7 @@ def main():
 
         # Проверяем, что введённое значение соответствует меню
         if choice not in ["1", "2", "3"]:
-            os.system("clear")
+            clear_terminal()
             console.print("[bold red]Неверный выбор. Попробуйте снова.[/]")
             continue
 
@@ -266,7 +279,7 @@ def main():
                 console.print(f"[bold red]{e}[/]")
                 continue
 
-            os.system("clear")
+            clear_terminal()
             first_safe_version, last_version = get_safe_version(conn, product)
             if first_safe_version:
                 console.print(Panel(
@@ -281,7 +294,7 @@ def main():
             product = Prompt.ask("[bold yellow]Введите название продукта[/]").strip()
             version = Prompt.ask("[bold yellow]Введите версию[/]").strip()
 
-            os.system("clear")
+            clear_terminal()
             try:
                 validate_product_name(conn, product)
                 validate_version(conn, product, version)
@@ -298,7 +311,7 @@ def main():
                 print_vulnerabilities_table(results, terminal_supports_links)
 
         elif choice == "3":
-            os.system("clear")
+            clear_terminal()
             console.print("[bold magenta]Вы покинули матрицу... 🚪[/]")
             exit_sound()
             pygame.mixer.music.stop()
