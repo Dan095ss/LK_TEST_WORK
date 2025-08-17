@@ -1,7 +1,8 @@
 from packaging import version
 
+
 def get_safe_version(conn, product_name):
-    """Возвращает первую безопасную версию и последнюю доступную версию продукта."""
+    # Возвращает первую безопасную версию и последнюю доступную версию продукта.
     cursor = conn.cursor()
 
     # Получаем все версии продукта
@@ -44,7 +45,6 @@ def get_safe_version(conn, product_name):
 
 
 def check_vulnerabilities(conn, product_name, version_str):
-    """Проверяет, есть ли уязвимости для указанного продукта и версии."""
     cursor = conn.cursor()
 
     cursor.execute("""

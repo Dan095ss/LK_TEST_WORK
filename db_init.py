@@ -1,4 +1,6 @@
 import sqlite3
+import sys
+
 
 def init_database(db_name):
     try:

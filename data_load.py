@@ -5,6 +5,7 @@ from rich.console import Console
 
 console = Console()
 
+
 def load_versions(conn, file_name):
     try:
         with open(file_name, 'r') as f:
@@ -25,8 +26,9 @@ def load_versions(conn, file_name):
         console.print(f"[bold red]Ошибка при чтении {file_name}: {e}[/]")
         return 0
 
+
 def load_vulnerabilities(conn, file_name):
-    """Загружает уязвимости из JSON-файла."""
+    # Загружает уязвимости из JSON-файла.
     try:
         with open(file_name, 'r') as f:
             vulns_data = json.load(f)

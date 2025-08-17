@@ -1,3 +1,5 @@
+import os
+
 import pygame
 from rich.console import Console
 from rich.panel import Panel
@@ -6,6 +8,7 @@ from rich.prompt import Prompt
 
 from db_init import init_database
 from data_load import load_versions, load_vulnerabilities
+from secure import compress_file, decompress_file
 from vuln_check import get_safe_version, check_vulnerabilities
 
 import re
@@ -22,20 +25,22 @@ pygame.mixer.init()
 
 console = Console()
 
+
 def validate_product_name(product_name):
-    """Проверяет, что название продукта не пустое и содержит только допустимые символы."""
+    # Проверяет, что название продукта не пустое и содержит только допустимые символы
     if not product_name or not re.match(r"^[a-zA-Z0-9\s\-\(\)]+$", product_name):
         raise ValueError("Недопустимое название продукта. Используйте только буквы, цифры, пробелы, дефисы и скобки.")
 
+
 def validate_version(version_str):
-    """Проверяет, что версия соответствует формату X.Y.Z."""
+    # Проверяет, что версия соответствует формату X.Y.Z
     try:
-        version.parse(version_str)  # Проверяем, что версия может быть распарсена
+        version.parse(version_str)
     except Exception:
         raise ValueError(f"Недопустимый формат версии: {version_str}. Ожидается формат X.Y.Z.")
 
+
 def print_vulnerabilities_table(results, terminal_supports_links):
-    """Выводит таблицу с найденными уязвимостями."""
     if not results:
         console.print("[bold green]Уязвимостей не найдено! ✅[/]")
         return
@@ -76,8 +81,9 @@ def print_vulnerabilities_table(results, terminal_supports_links):
 
     console.print(table)
 
+
 def check_terminal_support():
-    """Проверяет поддержку гиперссылок терминалом."""
+    # Проверяет поддержку гиперссылок терминалом.
     if not console.is_terminal:
         console.print("[bold yellow]Внимание:[/] Ваш терминал может не поддерживать кликабельные ссылки. "
                       "Для полного функционала используйте современный терминал (например, Windows Terminal, iTerm2).")
@@ -85,12 +91,14 @@ def check_terminal_support():
         return False
     return True
 
+
 def play_main_theme():
     try:
         pygame.mixer.music.load("sounds/main_theme.mp3")
         pygame.mixer.music.play(-1)
     except Exception as e:
         console.print(f"[bold red]Ошибка воспроизведения основной мелодии: {e}[/]")
+
 
 def play_alert_sound():
     try:
@@ -103,6 +111,7 @@ def play_alert_sound():
     except Exception as e:
         console.print(f"[bold red]Ошибка воспроизведения уведомления: {e}[/]")
 
+
 def exit_sound():
     try:
         pygame.mixer.music.stop()
@@ -113,6 +122,7 @@ def exit_sound():
     except Exception as e:
         console.print(f"[bold red]Ошибка воспроизведения уведомления: {e}[/]")
 
+
 def print_easter_egg():
     console.print(Panel(
         "[bold magenta]Вы нашли секретную пасхалку! 🎉\n\n"
@@ -121,20 +131,32 @@ def print_easter_egg():
         title="🎉 Секретная пасхалка! 🎉",
         style="on black"
     ))
+
+
 def main():
     # Проверка поддержки терминала
     terminal_supports_links = check_terminal_support()
 
     play_main_theme()
 
-    console.print(Panel("[bold green]SUPER PUPER DUPER ULTRA [bold cyan]Vulnerability Checker[/] v1.0[/]", title="Добро пожаловать!", subtitle="Защитите свои системы!"))
+    console.print(Panel("[bold green]SUPER PUPER DUPER ULTRA [bold cyan]Vulnerability Checker[/] v1.0[/]",
+                        title="Добро пожаловать!", subtitle="Защитите свои системы!"))
 
-    # Инициализация БД
-    try:
-        conn = init_database(DB_NAME)
-    except Exception as e:
-        console.print(f"[bold red]Ошибка подключения к базе данных: {e}[/]")
-        return
+    if not os.path.exists(DB_NAME) and not os.path.exists(DB_NAME + ".zlib"):
+        try:
+            console.print("[bold yellow]Первый запуск: база данных не найдена. Создаём новую...[/]")
+            conn = init_database(DB_NAME)
+        except Exception as e:
+            console.print(f"[bold red]Ошибка подключения к базе данных: {e}[/]")
+            return
+    elif os.path.exists(DB_NAME + ".zlib"):
+        try:
+            # Распаковка базы данных перед использованием
+            decompress_file(DB_NAME + ".zlib")
+            conn = init_database(DB_NAME)
+        except Exception as e:
+            console.print(f"[bold red]Ошибка подключения к базе данных: {e}[/]")
+            return
 
     # Загрузка данных
     loaded_versions = load_versions(conn, VERSIONS_FILE)
@@ -195,7 +217,8 @@ def main():
             results = check_vulnerabilities(conn, product, version)
 
             if not results:
-                console.print(Panel(f"✅ У продукта '{product}' в версии '{version}' уязвимостей не найдено.", title="Анализ завершен"))
+                console.print(Panel(f"✅ У продукта '{product}' в версии '{version}' уязвимостей не найдено.",
+                                    title="Анализ завершен"))
             else:
                 print_vulnerabilities_table(results, terminal_supports_links)
 
@@ -203,6 +226,9 @@ def main():
             console.print("[bold magenta]Вы покинули матрицу... 🚪[/]")
             exit_sound()
             pygame.mixer.music.stop()
+
+            compress_file(DB_NAME)
+
             break
 
     conn.close()
