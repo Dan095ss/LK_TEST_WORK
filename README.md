@@ -73,6 +73,7 @@ pip install -r requirements.txt
 ```bash
 git clone https://github.com/Dan095ss/LK_TEST_WORK.git
 cd vulnerability-checker
+(или же любая другая директория, в которую вы вложите данный проект. По умолчанию: LK_TEST_WORK)
 ```
 
 2. Установите библиотеки:
@@ -117,7 +118,7 @@ python3 main.py
 ## Структура проекта
 
 ```bash
-vulnerability-checker/
+LK_TEST_WORK/
 ├── db_init.py          # Инициализация базы данных SQLite
 ├── data_load.py        # Загрузка данных из JSON в базу данных
 ├── main.py             # Основной файл программы
